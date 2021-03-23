@@ -90,7 +90,7 @@
     "electron": "^6.1.12",
     "electron-builder": "^21.2.0",
     "eslint-config-airbnb": "^18.1.0",
-    "jspdf": "^1.5.3",
+    "jspdf": "^2.3.1",
     "popper.js": "^1.16.1",
     "react-scripts": "^3.4.3",
     "tslib": "^2.0.1",
