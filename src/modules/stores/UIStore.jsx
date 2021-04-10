@@ -9,7 +9,7 @@ class UIStore {
     constructor() {
         extendObservable(this, {
             introTutorial: undefined, // whether is in the tutorial mode
-            cBioInstance: 'hack', // hack, portal, own
+            cBioInstance: 'own', // hack, portal, own
             continuousRepresentation: 'gradient', // gradient, boxplot, medium
             realTime: false, // show realtime lines in block view
             selectedTab: 'stateTransition', // show global timeline

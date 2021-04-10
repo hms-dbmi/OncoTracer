@@ -8,10 +8,11 @@ import { inject, observer } from 'mobx-react';
 const StudySummary = inject('rootStore')(observer(class StudySummary extends React.Component {
     render() {
         let numberOfTimepoints;
-        const minTP = Math.min(...Object.keys(this.props.rootStore.sampleStructure)
-            .map(key => this.props.rootStore.sampleStructure[key].length));
-        const maxTP = Math.max(...Object.keys(this.props.rootStore.sampleStructure)
-            .map(key => this.props.rootStore.sampleStructure[key].length));
+        const {sampleStructure} = this.props.rootStore
+        const minTP = Math.min(...Object.keys(sampleStructure)
+            .map(key => sampleStructure[key].length));
+        const maxTP = Math.max(...Object.keys(sampleStructure)
+            .map(key => sampleStructure[key].length));
 
         if (minTP === maxTP) {
             numberOfTimepoints = minTP;

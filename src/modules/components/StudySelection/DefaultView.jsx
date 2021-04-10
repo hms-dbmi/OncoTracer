@@ -1,5 +1,6 @@
 import React from 'react';
 import { inject, observer } from 'mobx-react';
+import axios from 'axios';
 import Select from 'react-select';
 import {
     Alert,
@@ -20,6 +21,15 @@ import { extendObservable } from 'mobx';
 import StudySummary from '../StudySummary';
 import LocalFileSelection from './LocalFileSelection';
 
+const axiosInstance = axios.create({
+    baseURL: "http://threadstates.gehlenborglab.org/demo_data/",
+    withCredentials: false,
+    headers: {
+      'Access-Control-Allow-Origin' : '*',
+      'Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,PATCH,OPTIONS',
+      }
+  });
+
 
 /*
  * Component for view if no study has been loaded
@@ -32,16 +42,18 @@ const DefaultView = inject('rootStore', 'undoRedoStore', 'uiStore')(observer(cla
         extendObservable(this, {
             selectedStudy: null,
             selectedTab: 'cBio',
-            ownInstanceURL: '',
+            ownInstanceURL: ''
         });
         this.handleSelectTab = this.handleSelectTab.bind(this);
         this.displayStudy = this.displayStudy.bind(this);
         this.selectInstance = this.selectInstance.bind(this);
         this.handleInstanceChange = this.handleInstanceChange.bind(this);
+        this.loadExampleFromServer = this.loadExampleFromServer.bind(this)
+        this.loadCOVIDExample = this.loadCOVIDExample.bind(this)
     }
 
     /**
-     * selects a study
+     * selects a study from cBioPortal
      * @param {Object} selectedOption
      */
     getStudy(selectedOption) {
@@ -56,11 +68,48 @@ const DefaultView = inject('rootStore', 'undoRedoStore', 'uiStore')(observer(cla
      * @returns {Object[]}
      */
     setOptions() {
-        const options = [];
+        let options = [];
         this.props.rootStore.studyAPI.studies.forEach((d) => {
             options.push({ value: d.studyId, label: d.name });
         });
-        return options;
+        return options
+    }
+
+    /**
+     * load example studies from the txt files on server
+     * @param {Object} selectedOption
+     */
+    loadExampleFromServer(selectedOption){
+        if (selectedOption.value==='synthea COVID'){
+            this.loadCOVIDExample()
+        }
+       
+    }
+
+    /**
+     * load covid example studies from the txt files on server
+     */
+    loadCOVIDExample(){
+        const {localFileLoader} = this.props.rootStore
+        
+        // timeline data
+        axios.all([
+            axiosInstance.get('covid_100_timeline_med.txt'),
+            axiosInstance.get('covid_100_timeline_samples.txt'),
+        ]).then(res=>{
+            const files = res.map(d=>d.data)
+            localFileLoader.setEventFiles(files, () => {
+                this.props.rootStore.parseTimeline(null, () => {
+                });
+            });
+        }).then(()=>axiosInstance.get('covid_100_samples.txt'))
+        .then(res=>{
+            localFileLoader.setClinicalFile(res.data, true)
+            return axiosInstance.get('covid_100_patients.txt')
+        }).then(res=>{
+            localFileLoader.setClinicalFile(res.data, false)
+        })
+         
     }
 
 
@@ -89,6 +138,20 @@ const DefaultView = inject('rootStore', 'undoRedoStore', 'uiStore')(observer(cla
         } else if ((this.selectedStudy !== null && !this.props.rootStore.isOwnData)
             || (this.props.rootStore.isOwnData && this.props.rootStore.localFileLoader.eventsParsed === 'loading')) {
             info = <div className="smallLoader" />;
+        } else if (this.props.rootStore.isOwnData && this.props.rootStore.localFileLoader.dataReady){
+            info = (
+                <div>
+                    <Panel>
+                        <Panel.Heading>
+                            <Panel.Title>
+                                Study information
+                            </Panel.Title>
+                        </Panel.Heading>
+                        <Panel.Body>
+                            <StudySummary />
+                        </Panel.Body>
+                    </Panel>
+                </div>)
         }
         return info;
     }
@@ -98,7 +161,7 @@ const DefaultView = inject('rootStore', 'undoRedoStore', 'uiStore')(observer(cla
      * @param {string} key
      */
     handleSelectTab(key) {
-        this.props.rootStore.setIsOwnData(key !== 'cBio');
+        this.props.rootStore.setIsOwnData( (key !== 'cBio') );
         if (key === 'cBio') {
             if (this.selectedStudy !== null) {
                 this.props.rootStore.parseTimeline(this.props.rootStore.studyAPI.studies
@@ -271,13 +334,26 @@ const DefaultView = inject('rootStore', 'undoRedoStore', 'uiStore')(observer(cla
                             <Tab eventKey="own" title="Load data from files">
                                 <LocalFileSelection />
                             </Tab>
+                            {/* host other non-genomic datasets */}
+                            <Tab eventKey="examples" title="Other example datasets">
+                                <ControlLabel>
+                                    Select study
+                                </ControlLabel>
+                                <Select
+                                    type="text"
+                                    componentClass="select"
+                                    placeholder="Select Study"
+                                    options={[{'value': 'synthea COVID', 'label': 'synthea COVID'}]}
+                                    onChange={this.loadExampleFromServer}
+                                />
+                            </Tab>
                         </Tabs>
                         {this.getStudyInfo()}
                         <Button
                             disabled={launchDisabled}
                             onClick={this.displayStudy}
                         >
-                            Launch
+                            {launchDisabled? 'Data is loading or not selected': 'Launch'}
                         </Button>
                     </Col>
                 </Row>
